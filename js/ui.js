@@ -18,9 +18,28 @@ const UI = (() => {
     });
     $('preview').replaceChildren(frag);
   }
-  function renderTurn(num, total) {
-    $('turn-text').textContent = `Player ${num}, take the phone.`;
-    $('progress').textContent = `Player ${num} of ${total}`;
+  function renderNames(n, existing) {
+    const frag = document.createDocumentFragment();
+    for (let i = 0; i < n; i++) {
+      const wrap = document.createElement('div'); wrap.className = 'field';
+      const inp = document.createElement('input');
+      inp.type = 'text'; inp.maxLength = 16; inp.autocomplete = 'off';
+      inp.placeholder = 'Player ' + (i + 1); inp.value = existing[i] || '';
+      inp.setAttribute('aria-label', 'Name of player ' + (i + 1));
+      wrap.appendChild(inp); frag.appendChild(wrap);
+    }
+    $('names-list').replaceChildren(frag);
+    $('names-error').textContent = '';
+  }
+  function readNames() {
+    return Array.from($('names-list').querySelectorAll('input'))
+      .map((inp, i) => inp.value.trim() || 'Player ' + (i + 1));
+  }
+  const showError = msg => { $('names-error').textContent = msg; };
+  function renderTurn(name, num, total) {
+    $('turn-text').textContent = `${name}, take the phone.`;
+    $('progress').textContent = `${num} of ${total}`;
+    $('btn-pass').disabled = true;
   }
   function revealRole(role) {
     const type = Roles.typeOf(role);
@@ -31,13 +50,12 @@ const UI = (() => {
     const i = document.createElement('i'); i.id = 'role-icon'; i.setAttribute('data-lucide', ICON[type]);
     old.replaceWith(i); icons();
     $('card').classList.add('flipped');
-    $('btn-reveal').classList.add('hidden'); $('btn-hide').classList.remove('hidden');
   }
   function hideRole() { // wipe secret text first; flip back without animation
     $('role-name').textContent = ''; $('role-score').textContent = '';
     $('card-back').className = 'face back';
     const c = $('card'); c.style.transition = 'none'; c.classList.remove('flipped'); void c.offsetWidth; c.style.transition = '';
-    $('btn-hide').classList.add('hidden'); $('btn-reveal').classList.remove('hidden');
   }
-  return { $, show, renderSelect, renderTurn, revealRole, hideRole, icons };
+  const enablePass = () => { $('btn-pass').disabled = false; };
+  return { $, show, renderSelect, renderNames, readNames, showError, renderTurn, revealRole, hideRole, enablePass, icons };
 })();

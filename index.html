@@ -40,8 +40,19 @@
       <ul class="chips" id="preview"></ul>
     </div>
     <div class="stack">
-      <button class="btn primary" data-action="generate">Continue</button>
+      <button class="btn primary" data-action="names">Continue</button>
       <button class="btn ghost" data-action="home">Back</button>
+    </div>
+  </section>
+
+  <section class="screen" id="screen-names">
+    <h2>Who is playing?</h2>
+    <p class="tagline">Enter each player's name.</p>
+    <div class="names" id="names-list"></div>
+    <p class="error" id="names-error" role="alert"></p>
+    <div class="stack">
+      <button class="btn primary" data-action="generate">Continue</button>
+      <button class="btn ghost" data-action="start">Back</button>
     </div>
   </section>
 
@@ -57,9 +68,9 @@
   <section class="screen" id="screen-reveal">
     <p class="progress" id="progress"></p>
     <h2 id="turn-text">Player 1, take the phone.</h2>
-    <div class="card-scene">
+    <div class="card-scene" id="card-scene" tabindex="0" role="button" aria-label="Hold to reveal your role">
       <div class="card" id="card">
-        <div class="face front"><i data-lucide="lock"></i><span>Hidden</span></div>
+        <div class="face front"><i data-lucide="lock"></i><span>Hold to reveal</span></div>
         <div class="face back" id="card-back">
           <i id="role-icon" data-lucide="user"></i>
           <div class="role-name" id="role-name"></div>
@@ -67,9 +78,9 @@
         </div>
       </div>
     </div>
+    <p class="hint">Press and hold the card to see your role. Let go to hide it.</p>
     <div class="stack">
-      <button class="btn primary" id="btn-reveal">Reveal my role</button>
-      <button class="btn danger hidden" id="btn-hide">Hide role &amp; pass phone</button>
+      <button class="btn primary" id="btn-pass" disabled>Pass phone to next player</button>
     </div>
   </section>
 
