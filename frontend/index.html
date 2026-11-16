@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#18290f">
+<title>Cop &amp; Killer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/animations.css">
+<link rel="stylesheet" href="css/responsive.css">
+<script>window.SERVER_URL = 'https://cop-killer-game.onrender.com'; /* set to your Render URL when the frontend is hosted separately */</script>
+ <!-- <script>window.SERVER_URL = 'http://localhost:3001';</script> -->
+</head>
+<body>
+<div id="toasts" aria-live="polite"></div>
+<div id="confirm" class="overlay hidden"><div class="glass modal"><p id="confirm-text"></p>
+  <div class="stack"><button class="btn danger" id="confirm-yes">Yes, confirm</button><button class="btn ghost" id="confirm-no">Cancel</button></div></div></div>
+
+<div id="rounds-modal" class="overlay hidden">
+  <div class="glass modal">
+    <p class="label" style="margin:0;font-size:1.15rem;font-weight:700;color:var(--text);">Select Number of Rounds</p>
+    <p class="hint" style="margin:0;">How many rounds do you want to play?</p>
+    <div class="counter" style="margin:10px 0;">
+      <button class="round" id="modal-rounds-minus" type="button" aria-label="Fewer rounds"><i data-lucide="minus"></i></button>
+      <div class="count">
+        <input id="modal-rounds-input" type="number" min="1" max="20" value="3" style="width:80px;text-align:center;font-size:2.6rem;font-weight:800;background:transparent;border:none;color:var(--text);outline:none;">
+        <small style="display:block;">rounds</small>
+      </div>
+      <button class="round" id="modal-rounds-plus" type="button" aria-label="More rounds"><i data-lucide="plus"></i></button>
+    </div>
+    <div class="stack">
+      <button class="btn primary" id="modal-rounds-confirm"><i data-lucide="play"></i>Start Game</button>
+      <button class="btn ghost" id="modal-rounds-cancel" type="button">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div id="pause-overlay" class="overlay hidden" role="alertdialog" aria-live="assertive" aria-labelledby="pause-title">
+  <div class="glass modal pause-box">
+    <div class="pause-icon"><i data-lucide="pause-circle"></i></div>
+    <h2 id="pause-title">GAME PAUSED</h2>
+    <p class="pause-names" id="pause-names"></p>
+    <div class="pause-count" id="pause-count"></div>
+    <ul class="plist" id="pause-list"></ul>
+    <p class="hint" id="pause-note"></p>
+    <div class="stack hidden" id="pause-host">
+      <button class="btn secondary" id="pause-end-btn" type="button">End round &amp; return to lobby</button>
+      <button class="btn primary" id="pause-restart-btn" type="button">Remove disconnected &amp; restart round</button>
+    </div>
+  </div>
+</div>
+
+<main id="app">
+
+  <!-- ==================== COMMON HOME SCREEN ==================== -->
+  <section class="screen active" id="screen-home">
+    <div class="logo"><i data-lucide="search"></i></div>
+    <h1 class="title"><span class="cop-text">COP</span> &amp; <span class="killer-text">KILLER</span></h1>
+    <p class="tagline">Trust Nobody. Catch the Killer.</p>
+
+    <!-- Common Mode Selector Tabs -->
+    <div class="mode-tabs">
+      <button class="mode-tab active" id="tab-classic" type="button">
+        <i data-lucide="smartphone"></i>
+        <span>Classic</span>
+        <small>1 Phone · Pass &amp; Play</small>
+      </button>
+      <button class="mode-tab" id="tab-online" type="button">
+        <i data-lucide="wifi"></i>
+        <span>Online</span>
+        <small>Multiplayer · Room ID</small>
+      </button>
+    </div>
+
+    <!-- Classic Mode Content -->
+    <div class="mode-content" id="panel-classic">
+      <button class="btn primary" data-action="classic-start"><i data-lucide="play"></i>Start Classic Game</button>
+      <div class="glass howto">
+        <p class="label">How to play (Classic Pass &amp; Play)</p>
+        <ol>
+          <li>Pass 1 phone around among 4–10 players.</li>
+          <li>Each player secretly holds the card to see their role.</li>
+          <li>Once all roles are received, play face-to-face!</li>
+        </ol>
+      </div>
+    </div>
+
+    <!-- Online Mode Content -->
+    <div class="mode-content hidden" id="panel-online">
+      <div class="stack">
+        <button class="btn primary" data-go="create"><i data-lucide="plus-circle"></i>Create room</button>
+        <button class="btn secondary" data-go="join"><i data-lucide="log-in"></i>Join room</button>
+      </div>
+      <div class="glass howto">
+        <p class="label">How to play (Online Multiplayer)</p>
+        <ol>
+          <li>Everyone joins with a Room ID and gets their secret role.</li>
+          <li>The Killer secretly eliminates people. When hit, tap I'M DEAD.</li>
+          <li>The Cop investigates to catch the Killer before half are dead!</li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== CLASSIC PASS & PLAY SCREENS ==================== -->
+  <section class="screen" id="screen-classic-select">
+    <h2>How many players?</h2>
+    <div class="glass counter">
+      <button class="round" id="classic-minus" aria-label="Fewer players"><i data-lucide="minus"></i></button>
+      <div class="count"><span id="classic-count-num">6</span><small>players</small></div>
+      <button class="round" id="classic-plus" aria-label="More players"><i data-lucide="plus"></i></button>
+    </div>
+    <div class="glass">
+      <p class="label">Role distribution</p>
+      <ul class="chips" id="classic-preview"></ul>
+    </div>
+    <div class="stack">
+      <button class="btn primary" data-action="classic-names">Continue</button>
+      <button class="btn ghost" data-go="home">Back to Home</button>
+    </div>
+  </section>
+
+  <section class="screen" id="screen-classic-names">
+    <h2>Who is playing?</h2>
+    <p class="tagline">Enter each player's name.</p>
+    <div class="names" id="classic-names-list"></div>
+    <p class="error" id="classic-names-error" role="alert"></p>
+    <div class="stack">
+      <button class="btn primary" data-action="classic-generate">Continue</button>
+      <button class="btn ghost" data-go="classic-select">Back</button>
+    </div>
+  </section>
+
+  <section class="screen" id="screen-classic-ready">
+    <div class="logo"><i data-lucide="shuffle"></i></div>
+    <h2>Your chits are ready!</h2>
+    <p class="tagline">Roles are shuffled. Pass the phone one player at a time.</p>
+    <div class="stack">
+      <button class="btn primary" data-action="classic-reveal-start">Start revealing</button>
+      <button class="btn ghost" data-go="classic-names">Back</button>
+    </div>
+  </section>
+
+  <section class="screen" id="screen-classic-reveal">
+    <p class="progress" id="classic-progress"></p>
+    <h2 id="classic-turn-text">Player 1, take the phone.</h2>
+    <div class="card-scene" id="classic-card-scene" tabindex="0" role="button" aria-label="Hold to reveal your role">
+      <div class="card" id="classic-card">
+        <div class="face front"><i data-lucide="lock"></i><span>Hold to reveal</span></div>
+        <div class="face back" id="classic-card-back">
+          <i id="classic-role-icon" data-lucide="user"></i>
+          <div class="role-name" id="classic-role-name"></div>
+          <div class="role-score" id="classic-role-score"></div>
+        </div>
+      </div>
+    </div>
+    <p class="hint">Press and hold the card to see your role. Let go to hide it.</p>
+    <div class="stack">
+      <button class="btn primary" id="classic-btn-pass" disabled>Pass phone to next player</button>
+    </div>
+  </section>
+
+  <section class="screen" id="screen-classic-done">
+    <div class="logo"><i data-lucide="check"></i></div>
+    <h2>All players have received their roles!</h2>
+    <p class="tagline">Keep your identity secret. The real game starts now!</p>
+    <div class="stack">
+      <button class="btn primary" data-go="home">Home</button>
+      <button class="btn secondary" data-action="classic-again">Start new game</button>
+    </div>
+  </section>
+
+  <!-- ==================== ONLINE MULTIPLAYER SCREENS ==================== -->
+  <section class="screen" id="screen-create">
+    <h2>Create a room</h2>
+    <form class="stack" id="create-form">
+      <div class="field"><input id="create-name" maxlength="16" placeholder="Your name" autocomplete="off" required></div>
+      <button class="btn primary" type="submit">Create room</button>
+      <button class="btn ghost" type="button" data-go="home">Back</button>
+    </form>
+  </section>
+
+  <section class="screen" id="screen-join">
+    <h2>Join a room</h2>
+    <form class="stack" id="join-form">
+      <div class="field"><input id="join-name" maxlength="16" placeholder="Your name" autocomplete="off" required></div>
+      <div class="field"><input id="join-room" maxlength="6" placeholder="Room ID" autocomplete="off" autocapitalize="characters" required></div>
+      <button class="btn primary" type="submit">Join room</button>
+      <button class="btn ghost" type="button" data-go="home">Back</button>
+    </form>
+  </section>
+
+  <section class="screen" id="screen-lobby">
+    <p class="label">Room ID</p>
+    <div class="code" id="lobby-code"></div>
+    <button class="btn secondary" id="copy-code"><i data-lucide="share-2"></i>Share Room ID</button>
+    <div class="glass"><p class="label" id="lobby-count"></p><ul class="plist" id="lobby-list"></ul></div>
+    <div class="stack">
+      <button class="btn primary hidden" id="start-btn">Start game</button>
+      <p class="hint" id="lobby-note"></p>
+      <button class="btn ghost" data-action="leave">Leave room</button>
+    </div>
+  </section>
+
+  <section class="screen" id="screen-role">
+    <h2>Your secret role</h2>
+    <p class="hint">Hold the card to see your role. Let go to hide it. Keep your screen to yourself.</p>
+    <div class="card-scene" id="card-scene" tabindex="0" role="button" aria-label="Hold to reveal your role">
+      <div class="card" id="card">
+        <div class="face front"><i data-lucide="lock"></i><span>Hold to reveal</span></div>
+        <div class="face back" id="card-back"><i id="role-icon" data-lucide="user"></i><div class="role-name" id="role-name"></div><div class="role-score" id="role-score"></div></div>
+      </div>
+    </div>
+    <div class="stack"><button class="btn primary" id="role-continue" disabled>Continue</button></div>
+  </section>
+
+  <section class="screen top" id="screen-game">
+    <div class="topbar"><span class="badge on" id="game-room"></span><span class="badge off">In progress</span></div>
+    <div class="tiles"><div class="glass"><b id="g-total"></b><small>Players</small></div><div class="glass"><b id="g-dead"></b><small>Dead / limit</small></div></div>
+    <div class="glass"><ul class="plist" id="game-list"></ul></div>
+    <div class="glass hidden" id="elim"><b>You are eliminated.</b><p class="hint">You can keep watching the game.</p></div>
+    <div class="glass hidden" id="cop-panel"><p class="label">Investigation: pick the Killer (one guess only)</p>
+      <ul class="plist pick" id="cop-list"></ul><button class="btn primary" id="guess-btn" disabled>Submit guess</button></div>
+    <p class="hint hidden" id="cop-used">You have used your guess.</p>
+    <div class="stack">
+      <button class="btn danger" id="dead-btn">I'M DEAD</button>
+      <button class="btn ghost" id="peek">Hold to peek at your role</button>
+      <p class="peek" id="peek-text"></p>
+    </div>
+  </section>
+
+  <section class="screen top" id="screen-result">
+    <h2 id="res-title"></h2>
+    <p class="tagline" id="res-killer"></p>
+    <div class="glass"><p class="label" id="res-stats"></p><ul class="plist" id="res-board"></ul></div>
+    <div class="stack">
+      <button class="btn primary hidden" id="next-btn">Continue to Next Round</button>
+      <button class="btn primary hidden" id="again-btn">Play again</button>
+      <p class="hint" id="res-note"></p>
+      <button class="btn ghost" data-action="leave">Return to home</button>
+    </div>
+  </section>
+</main>
+
+<script src="https://unpkg.com/lucide@0.383.0/dist/umd/lucide.min.js"></script>
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="js/roles.js"></script>
+<script src="js/socket.js"></script>
+<script src="js/classic.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
