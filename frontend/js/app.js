@@ -3,7 +3,7 @@
   let me = null, st = null, role = null, score = 0, copUsed = false, needsRole = false, held = false;
   const $ = UI.$;
 
-  // Stamp every server state with its arrival time so countdowns (server sends "ms remaining") tick correctly on this device.
+  // Stamp every server state with its arrival time so countdowns tick correctly on this device.
   const stamp = s => Object.assign({}, s, { _rx: Date.now() });
 
   function render() {
@@ -19,7 +19,7 @@
       UI.renderResult(st.result, st.hostId, me.playerId, st);
       UI.show('result');
     }
-    UI.renderPause(st, me.playerId); // GAME PAUSED overlay on top of whatever screen is active
+    UI.renderPause(st, me.playerId);
   }
 
   function leave() {
@@ -56,7 +56,6 @@
     role = d.role; score = d.score; copUsed = d.copUsed;
     if (!needsRole) render();
   });
-  // Disconnect-management notifications. The screens themselves are rendered from the synced state (st.pause).
   Net.on('game-paused', d => { if (me && d.trigger === 'disconnect') UI.toast(d.playerName + ' disconnected \u2014 game paused', 'pause-circle', 'info'); });
   Net.on('game-resumed', d => { if (me) UI.toast(d.playerName + ' reconnected \u2014 game resumed', 'play-circle', 'info'); });
   Net.on('pause-timeout', d => { if (me) UI.toast(d.playerName + ' did not reconnect in time', 'user-x', 'info'); });
@@ -78,24 +77,16 @@
   });
   Net.on('error-message', m => UI.toast(m, 'alert-circle', 'info'));
 
-  // Home Screen Mode Switcher Tabs
-  const tabClassic = $('tab-classic');
-  const tabOnline = $('tab-online');
-  const panelClassic = $('panel-classic');
-  const panelOnline = $('panel-online');
+  // Mode Switcher Tabs
+  const tabClassic = $('tab-classic'), tabOnline = $('tab-online');
+  const panelClassic = $('panel-classic'), panelOnline = $('panel-online');
 
   function switchMode(mode) {
-    if (mode === 'classic') {
-      tabClassic.classList.add('active');
-      tabOnline.classList.remove('active');
-      panelClassic.classList.remove('hidden');
-      panelOnline.classList.add('hidden');
-    } else {
-      tabOnline.classList.add('active');
-      tabClassic.classList.remove('active');
-      panelOnline.classList.remove('hidden');
-      panelClassic.classList.add('hidden');
-    }
+    const isClassic = mode === 'classic';
+    tabClassic?.classList.toggle('active', isClassic);
+    tabOnline?.classList.toggle('active', !isClassic);
+    panelClassic?.classList.toggle('hidden', !isClassic);
+    panelOnline?.classList.toggle('hidden', isClassic);
     UI.icons();
   }
 
@@ -108,7 +99,7 @@
     if (a) {
       const act = a.dataset.action;
       if (act === 'leave') return leave();
-      if (act === 'classic-start') {
+      if (act === 'classic-start' || act === 'classic-again') {
         ClassicGame.reset();
         ClassicUI.renderSelect(ClassicGame.getCount());
         return UI.show('classic-select');
@@ -120,8 +111,7 @@
       if (act === 'classic-generate') {
         const list = ClassicUI.readNames();
         if (new Set(list.map(n => n.toLowerCase())).size !== list.length) {
-          ClassicUI.showError('Each player needs a different name.');
-          return;
+          return ClassicUI.showError('Each player needs a different name.');
         }
         ClassicGame.setNames(list);
         ClassicGame.start();
@@ -131,11 +121,6 @@
         ClassicUI.hideRole();
         ClassicUI.renderTurn(ClassicGame.playerName(), ClassicGame.playerNumber(), ClassicGame.getCount());
         return UI.show('classic-reveal');
-      }
-      if (act === 'classic-again') {
-        ClassicGame.reset();
-        ClassicUI.renderSelect(ClassicGame.getCount());
-        return UI.show('classic-select');
       }
     }
 
@@ -163,38 +148,92 @@
   // Online Game Controls
   $('start-btn').onclick = async () => {
     const rounds = await UI.roundsBox(3);
-    if (rounds !== null && rounds > 0) {
-      Net.emit('start-game', { rounds });
-    }
+    if (rounds !== null && rounds > 0) Net.emit('start-game', { rounds });
   };
-  if ($('next-btn')) $('next-btn').onclick = () => Net.emit('next-round');
+  $('next-btn')?.addEventListener('click', () => Net.emit('next-round'));
   $('again-btn').onclick = () => Net.emit('restart-game');
 
-  // Host's choice after a player's 30s reconnect window expires (server re-checks that the sender is the host).
+  // Pause screen host controls
   $('pause-end-btn').onclick = async () => {
     if (await UI.confirmBox('End the current round and return everyone to the lobby?')) Net.emit('host-end-round');
   };
   $('pause-restart-btn').onclick = async () => {
     if (await UI.confirmBox('Remove the disconnected player(s) and restart this round with newly assigned roles?')) Net.emit('host-remove-restart');
   };
-  setInterval(UI.tick, 250); // live "Reconnecting\u2026 Ns" countdowns
 
-  $('copy-code').onclick = async () => {
-    const id = st && st.roomId; if (!id) return;
+  setInterval(UI.tick, 250);
+
+  // Copy & Share Room ID
+  const copyRoomId = async (showToast = true) => {
+    const id = st?.roomId;
+    if (!id) return false;
     try {
-      if (navigator.share) await navigator.share({ text: `Join my Cop & Killer room: ${id}` });
-      else { await navigator.clipboard.writeText(id); UI.toast('Room ID copied', 'copy', 'info'); }
-    } catch (_) {}
+      await navigator.clipboard.writeText(id);
+    } catch (_) {
+      const inp = document.createElement('input');
+      inp.value = id;
+      document.body.appendChild(inp);
+      inp.select();
+      document.execCommand('copy');
+      inp.remove();
+    }
+    if (showToast) UI.toast(`Room ID copied: ${id}`, 'copy', 'info');
+    return true;
   };
 
-  $('dead-btn').onclick = async () => {
-    if (role === 'Killer') {
-      UI.toast("You are the Killer — you can't report yourself as dead.", 'shield-x', 'info');
-      return;
+  const shareRoom = async () => {
+    const id = st?.roomId;
+    if (!id) return;
+    await copyRoomId(false);
+    const text = `hey im playing cop and killer join in this room : ${id}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ text });
+        return;
+      } catch (err) {
+        if (err.name === 'AbortError') return;
+      }
     }
-    if (role === 'Cop') {
-      UI.toast("You are the Cop — you can't report yourself as dead.", 'shield-x', 'info');
-      return;
+    UI.toast(`Room ID copied: ${id}`, 'copy', 'info');
+  };
+
+  ['copy-code', 'lobby-code', 'game-room'].forEach(id => {
+    const el = $(id);
+    if (el) el.onclick = () => copyRoomId(true);
+  });
+  if ($('share-code')) $('share-code').onclick = shareRoom;
+
+  // Join Room Paste & Code Cleanup
+  const cleanRoomCode = raw => {
+    if (!raw) return '';
+    const m = String(raw).match(/:\s*([A-Za-z0-9]{4,8})/i) || String(raw).match(/\b([A-HJ-NP-Za-hj-np-z2-9]{6})\b/);
+    return (m ? m[1] : raw).trim().toUpperCase().slice(0, 6);
+  };
+
+  const joinRoomInput = $('join-room');
+  joinRoomInput?.addEventListener('paste', e => {
+    const text = (e.clipboardData || window.clipboardData)?.getData('text');
+    if (text) {
+      e.preventDefault();
+      joinRoomInput.value = cleanRoomCode(text);
+    }
+  });
+
+  $('paste-room')?.addEventListener('click', async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text) {
+        joinRoomInput.value = cleanRoomCode(text);
+        return UI.toast('Pasted Room ID', 'clipboard', 'info');
+      }
+    } catch (_) {}
+    joinRoomInput?.focus();
+  });
+
+  // In-Game Actions
+  $('dead-btn').onclick = async () => {
+    if (role === 'Killer' || role === 'Cop') {
+      return UI.toast(`You are the ${role} — you can't report yourself as dead.`, 'shield-x', 'info');
     }
     if (await UI.confirmBox("Report that you're dead? This can't be undone.")) Net.emit('report-death');
   };
@@ -206,7 +245,7 @@
     }
   };
 
-  // Online Hold-to-reveal on the role card
+  // Hold-to-reveal on secret role card
   const scene = $('card-scene');
   const hide = () => { if (held) { held = false; UI.hideRole(); } };
   const press = () => {
@@ -223,14 +262,14 @@
   scene.addEventListener('keyup', e => { if (e.key === ' ' || e.key === 'Enter') hide(); });
   $('role-continue').onclick = () => { hide(); needsRole = false; render(); };
 
-  // Online Hold-to-peek on the game screen
+  // Hold-to-peek on game screen
   const peek = $('peek'), peekOff = () => { $('peek-text').textContent = ''; };
   peek.addEventListener('pointerdown', e => { e.preventDefault(); try { peek.setPointerCapture(e.pointerId); } catch (_) {} if (role) $('peek-text').textContent = 'You are ' + role; });
   ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(t => peek.addEventListener(t, peekOff));
   peek.addEventListener('contextmenu', e => e.preventDefault());
   document.addEventListener('visibilitychange', () => { if (document.hidden) { hide(); peekOff(); } });
 
-  // Initialize Classic Mode
+  // Init
   ClassicUI.init();
   UI.icons();
 })();

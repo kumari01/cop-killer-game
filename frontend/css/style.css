@@ -57,7 +57,8 @@ h2{font-size:1.6rem;font-weight:700;line-height:1.25}
 .btn:disabled{opacity:.4;cursor:not-allowed}
 .card-scene:focus-visible{outline:3px solid var(--amber);outline-offset:6px;border-radius:26px}
 .screen.top{justify-content:flex-start}
-.code{font-size:2.6rem;font-weight:800;letter-spacing:.25em;color:var(--sun);padding-left:.25em}
+.code{font-size:2.6rem;font-weight:800;letter-spacing:.25em;color:var(--sun);padding-left:.25em;cursor:pointer;user-select:all;transition:transform .15s}
+.code:active{transform:scale(.97)}
 .plist{list-style:none;padding:0;display:flex;flex-direction:column;gap:8px;text-align:left}
 .plist li{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 14px;border-radius:14px;background:var(--bg);border:1px solid var(--line)}
 .plist .tag{font-size:.75rem;color:var(--muted)}
